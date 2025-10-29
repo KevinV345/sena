@@ -5,8 +5,8 @@ from flask import Flask
 app = Flask(__name__)
 
 DB_CONFIG = {
-    'user': 'root',
-    'password': '',
+    'user': 'flask',
+    'password': '1234',
     'host': 'localhost',
     'database': 'olimpiadas',
     'raise_on_warnings': True,
@@ -14,6 +14,7 @@ DB_CONFIG = {
     'charset': 'utf8mb4',
     'use_unicode': True
 }
+
 
 def test_db():
     try:

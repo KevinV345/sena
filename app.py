@@ -46,8 +46,8 @@ def allowed_image_file(filename):
 
 # --- Configuración de Base de Datos ---
 DB_CONFIG = {
-    'user': 'root',
-    'password': '',
+    'user': 'flask',
+    'password': '1234',
     'host': 'localhost',
     'database': 'olimpiadas',
     'raise_on_warnings': True,
