@@ -1,6 +1,6 @@
-from flask import Flask
 import mysql.connector
 from mysql.connector import Error
+from flask import Flask
 
 app = Flask(__name__)
 
@@ -15,20 +15,17 @@ DB_CONFIG = {
     'use_unicode': True
 }
 
-@app.route('/')
 def test_db():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         if conn.is_connected():
-            cursor = conn.cursor()
-            cursor.execute("SHOW TABLES;")
-            tables = [t[0] for t in cursor.fetchall()]
-            return f"✅ Conexión exitosa. Tablas: {tables}"
-    except Error as e:
-        return f"❌ Error de conexión: {e}"
-    finally:
-        if 'conn' in locals() and conn.is_connected():
+            print("✅ Conexión exitosa a la base de datos")
             conn.close()
+        else:
+            print("❌ No se pudo conectar a la base de datos")
+    except Error as e:
+        print(f"❌ Error: {e}")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    test_db()
+    app.run(host='0.0.0.0', port=3000)
