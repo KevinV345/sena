@@ -97,6 +97,18 @@
               class="estado-badge estado-{{ examen.estado }}"
               >{{ examen.estado.capitalize() }}</span
             >
+            <!-- Info de Fase añadida para claridad -->
+            <span
+              style="
+                margin-left: 15px;
+                background-color: #e0e0e0;
+                padding: 3px 8px;
+                border-radius: 12px;
+                font-size: 0.9em;
+                font-weight: 500;
+              "
+              >Fase: {{ examen['fase(1-2)'] }}</span
+            >
           </div>
         </div>
         <button
@@ -341,6 +353,10 @@
       // Variables globales
       const ID_INSTRUMENTO = {{ examen.id_instrumento }};
       let estadoExamen = '{{ examen.estado }}';
+      // --- INICIO DE CORRECCIÓN (Req 1) ---
+      // Añadimos la fase del examen para controlar la visibilidad del botón 'Asignar'
+      const FASE_EXAMEN = {{ examen['fase(1-2)'] }};
+      // --- FIN DE CORRECCIÓN ---
       let preguntas = [];
       let tipoActual = null;
       let modoEdicion = false;
@@ -931,7 +947,11 @@
           const esPublico = estadoExamen === 'publico';
           document.getElementById('btn-nueva-pregunta').style.display = esBorrador ? 'inline-block' : 'none';
           document.getElementById('btn-publicar').style.display = esBorrador ? 'inline-block' : 'none';
-          document.getElementById('btn-asignar').style.display = esPublico ? 'inline-block' : 'none';
+          
+          // --- INICIO DE CORRECCIÓN (Req 1) ---
+          // Ahora el botón Asignar solo aparece si es público Y NO es Fase 2
+          document.getElementById('btn-asignar').style.display = (esPublico && FASE_EXAMEN !== 2) ? 'inline-block' : 'none';
+          // --- FIN DE CORRECCIÓN ---
 
           document.querySelectorAll('.lista-preguntas button').forEach(btn => btn.disabled = !esBorrador);
 
@@ -1139,4 +1159,3 @@
     ></script>
   </body>
 </html>
-

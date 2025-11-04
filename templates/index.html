@@ -89,7 +89,7 @@
       }
 
       .content {
-        flex: 1;
+        flex: 1; /* Esto hace que el contenido crezca */
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -112,7 +112,7 @@
 
       /* Footer Izquierdo */
       .footer-left {
-        margin-top: auto;
+        margin-top: auto; /* Esto empuja el footer izquierdo al fondo */
         padding-top: 24px;
         z-index: 10;
         font-size: 14px;
@@ -125,42 +125,54 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        /* justify-content: center; <- REMOVIDO para permitir que el footer se vaya al fondo */
         padding: 48px;
         background-color: var(--color-white);
         position: relative;
       }
 
-      /* Logo Derecho - Posición Fija */
+      /* NUEVO: Contenedor para el contenido principal de la columna derecha */
+      .right-column-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1; /* Esto hace que este bloque ocupe el espacio disponible */
+        width: 100%;
+      }
+
+      /* Logo Derecho */
       .brand-header-right {
-        position: absolute;
-        top: 48px;
-        right: 48px;
+        position: relative; 
         display: flex;
         align-items: center;
         gap: 16px;
+        justify-content: center; 
+        margin-bottom: 24px; 
       }
 
       .brand-name-right {
         font-size: 24px;
         font-weight: 700;
         color: black;
-        order: 1;
+        display: none; /* Oculto como en la imagen */
       }
 
       .brand-logo-right {
-        width: 80px;
-        height: 80px;
-        order: 2;
+        width: 150px; /* MODIFICADO: Más grande */
+        height: 150px; /* MODIFICADO: Más grande */
       }
 
-      /* Footer Derecho */
+      /* Footer Derecho - MODIFICADO */
       .footer-right {
-        position: absolute;
-        bottom: 48px;
-        right: 48px;
+        position: relative;
         font-size: 14px;
         color: var(--color-text-secondary);
+        width: 100%; 
+        max-width: 450px; 
+        text-align: right; 
+        margin-top: auto; /* MODIFICADO: Esto empuja el footer derecho al fondo */
+        padding-top: 24px; /* Añadido espacio por si acaso */
       }
 
       /* Formulario */
@@ -250,54 +262,74 @@
 
       /* Responsive */
       @media (max-width: 968px) {
+        body {
+          /* REMOVIDO: height: 100vh; */
+          /* REMOVIDO: overflow-y: hidden; */
+        }
+
         .container {
           flex-direction: column;
+          /* REMOVIDO: height: 100vh; */
         }
 
         .left-column {
-          padding: 20px;
+          padding: 15px; /* Reducido un poco (era 20px) */
           min-height: auto;
           height: auto;
+          flex-shrink: 0;
         }
 
         .brand-header {
-          margin-bottom: 20px;
+          margin-bottom: 15px; /* Restaurado */
         }
 
         .brand-logo {
-          width: 35px;
-          height: 35px;
+          width: 35px; /* Restaurado */
+          height: 35px; /* Restaurado */
         }
 
         .brand-name {
-          font-size: 15px;
+          font-size: 15px; /* Restaurado */
         }
 
         .content {
-          gap: 12px;
-          padding: 10px 0;
+          gap: 8px; /* Reducido un poco (era 10px) */
+          padding: 10px 0; 
+          flex: none; 
         }
 
         .title {
-          font-size: 20px;
-          margin-bottom: 10px;
+          font-size: 20px; /* Restaurado */
+          margin-bottom: 10px; /* Restaurado */
           line-height: 1.3;
         }
 
         .description {
-          font-size: 12px;
-          line-height: 1.5;
+          font-size: 12px; /* Restaurado */
+          line-height: 1.5; 
+          margin-bottom: 10px; 
         }
 
         .footer-left {
-          padding-top: 12px;
-          font-size: 10px;
+          padding-top: 8px; /* Reducido un poco (era 10px) */
+          font-size: 10px; 
+          margin-top: auto; 
         }
 
         .right-column {
-          padding: 32px 24px 40px 24px;
-          min-height: auto;
-          height: auto;
+          padding: 20px 24px 24px 24px; /* Reducido padding vertical (era 24/32px) */
+          min-height: 0;
+          flex: 1; 
+          /* REMOVIDO: overflow-y: hidden; */
+          /* REMOVIDO: justify-content: center; */
+        }
+        
+        .right-column-content {
+          flex: none; 
+          justify-content: center;
+          align-items: center;
+          display: flex;
+          flex-direction: column;
         }
 
         .brand-header-right {
@@ -305,27 +337,30 @@
           top: auto;
           right: auto;
           gap: 10px;
-          justify-content: flex-end;
-          margin-bottom: 24px;
+          justify-content: center; 
+          margin-bottom: 15px; /* Reducido un poco (era 20px) */
           width: 100%;
         }
 
         .brand-logo-right {
-          width: 50px;
-          height: 50px;
+          width: 100px; /* Restaurado (tamaño decente) */
+          height: 100px; /* Restaurado */
         }
 
         .brand-name-right {
           font-size: 15px;
+          display: none; 
         }
-
+        
         .footer-right {
           position: relative;
           bottom: auto;
           right: auto;
-          font-size: 10px;
-          text-align: center;
-          margin-top: 24px;
+          font-size: 10px; 
+          text-align: center; 
+          margin-top: 20px; /* Reducido un poco (era 24px) */
+          max-width: 100%; 
+          padding-top: 0;
         }
 
         .form-container {
@@ -333,33 +368,39 @@
         }
 
         .form-header {
-          margin-bottom: 20px;
+          margin-bottom: 20px; /* Reducido un poco (era 24px) */
         }
 
         .form-title {
-          font-size: 24px;
+          font-size: 24px; /* Restaurado */
+          margin-bottom: 8px; /* Restaurado */
         }
 
         .form-subtitle {
-          font-size: 13px;
+          font-size: 13px; /* Restaurado */
         }
 
         .login-form {
-          gap: 18px;
+          gap: 15px; /* Reducido un poco (era 18px) */
+        }
+
+        .form-group {
+          gap: 6px; /* Restaurado */
         }
 
         .form-label {
-          font-size: 13px;
+          font-size: 13px; /* Restaurado */
         }
 
         .form-input {
-          padding: 10px 14px;
-          font-size: 14px;
+          padding: 10px 14px; /* Restaurado */
+          font-size: 14px; /* Restaurado */
         }
 
         .submit-button {
-          padding: 12px 20px;
-          font-size: 15px;
+          padding: 12px 20px; /* Restaurado */
+          font-size: 15px; /* Restaurado */
+          margin-top: 8px; /* Restaurado */
         }
       }
     </style>
@@ -395,50 +436,54 @@
 
       <!-- Columna Derecha -->
       <div class="right-column">
-        <!-- Logo Derecho Fijo -->
-        <div class="brand-header-right">
-          <div class="brand-name-right">Skills Fest</div>
-          <div class="brand-logo-right">
-            <img src="{{ url_for('static', filename='img/logo-original.png') }}" alt="Logo Skills Fest" class="logo-image" />
-          </div>
-        </div>
-
-        <!-- Formulario Centrado -->
-        <div class="form-container">
-          <div class="form-header">
-            <h2 class="form-title">Iniciar Sesión</h2>
-            <p class="form-subtitle">Ingresa tus credenciales para acceder</p>
+        
+        <!-- Contenido principal (Logo y Form) -->
+        <div class="right-column-content"> <!-- NUEVO WRAPPER -->
+          <!-- Logo Derecho -->
+          <div class="brand-header-right">
+            <div class="brand-name-right">Skills Fest</div>
+            <div class="brand-logo-right">
+              <img src="{{ url_for('static', filename='img/logo-original.png') }}" alt="Logo Skills Fest" class="logo-image" />
+            </div>
           </div>
 
-          <form class="login-form" id="login-form">
-            <div class="form-group">
-              <label for="document" class="form-label">Cédula de Ciudadanía</label>
-              <input
-                type="text"
-                id="document"
-                name="document"
-                class="form-input"
-                placeholder="Ingresa tu número de cédula"
-                inputmode="numeric"
-                pattern="[0-9]*"
-                required
-              />
+          <!-- Formulario Centrado -->
+          <div class="form-container">
+            <div class="form-header">
+              <h2 class="form-title">Iniciar Sesión</h2>
+              <p class="form-subtitle">Ingresa tus credenciales para acceder</p>
             </div>
 
-            <div class="form-group">
-              <label for="password" class="form-label">Contraseña</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                class="form-input"
-                placeholder="Ingresa tu contraseña"
-                required
-              />
-            </div>
+            <form class="login-form" id="login-form">
+              <div class="form-group">
+                <label for="document" class="form-label">Cédula de Ciudadanía</label>
+                <input
+                  type="text"
+                  id="document"
+                  name="document"
+                  class="form-input"
+                  placeholder="Ingresa tu número de cédula"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  required
+                />
+              </div>
 
-            <button type="submit" class="submit-button">Iniciar Sesión</button>
-          </form>
+              <div class="form-group">
+                <label for="password" class="form-label">Contraseña</label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  class="form-input"
+                  placeholder="Ingresa tu contraseña"
+                  required
+                />
+              </div>
+
+              <button type="submit" class="submit-button">Iniciar Sesión</button>
+            </form>
+          </div>
         </div>
 
         <!-- Footer Derecho -->
@@ -453,8 +498,17 @@
       const canvas = document.getElementById('particles-canvas');
       const ctx = canvas.getContext('2d');
       
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      // Asegurarse de que el canvas tenga tamaño antes de usarlo
+      if (canvas.offsetWidth > 0 && canvas.offsetHeight > 0) {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+      } else {
+        // Fallback si la columna no es visible inmediatamente
+        const leftColumn = document.querySelector('.left-column');
+        canvas.width = leftColumn.offsetWidth || window.innerWidth / 2;
+        canvas.height = leftColumn.offsetHeight || window.innerHeight;
+      }
+
 
       const particles = [];
       const particleCount = 50;
@@ -509,8 +563,11 @@
 
       // Responsive canvas
       window.addEventListener('resize', () => {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
+        const leftColumn = document.querySelector('.left-column');
+        if(leftColumn.offsetWidth > 0) {
+            canvas.width = leftColumn.offsetWidth;
+            canvas.height = leftColumn.offsetHeight;
+        }
       });
     </script>
     
@@ -518,3 +575,8 @@
     <script type="module" src="{{ url_for('static', filename='js/aprendiz/particle-system.js') }}"></script>
   </body>
 </html>
+
+
+
+
+

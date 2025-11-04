@@ -39,19 +39,37 @@ document.addEventListener('DOMContentLoaded', function() {
         return container;
     }
 
-    // Manejar selección de archivo
+    // --- INICIO DE MODIFICACIÓN: Manejar múltiples archivos ---
     fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
+        const files = e.target.files; // Obtener la lista de archivos
         
-        if (file) {
-            // Validar que sea un archivo Excel
+        if (files.length > 0) {
+            // Validar que todos sean archivos Excel
             const validExtensions = ['xlsx', 'xls'];
-            const fileExtension = file.name.split('.').pop().toLowerCase();
+            let allValid = true;
+            let totalSize = 0;
+            const fileNames = [];
+
+            for (const file of files) {
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                if (!validExtensions.includes(fileExtension)) {
+                    allValid = false;
+                    break;
+                }
+                totalSize += file.size;
+                fileNames.push(file.name);
+            }
             
-            if (validExtensions.includes(fileExtension)) {
-                const fileSize = (file.size / 1024 / 1024).toFixed(2);
-                fileName.textContent = `✓ ${file.name}`;
-                document.querySelector('.file-subtext').textContent = `Tamaño: ${fileSize} MB - Listo para procesar`;
+            if (allValid) {
+                const fileSize = (totalSize / 1024 / 1024).toFixed(2);
+                
+                if (files.length === 1) {
+                    fileName.textContent = `✓ ${fileNames[0]}`;
+                } else {
+                    fileName.textContent = `✓ ${files.length} archivos seleccionados`;
+                }
+                
+                document.querySelector('.file-subtext').textContent = `Tamaño total: ${fileSize} MB - Listo para procesar`;
                 
                 fileLabel.classList.add('has-file');
                 uploadBtn.disabled = false;
@@ -64,19 +82,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     </svg>
                 `;
                 
-                showNotification('✓ Archivo cargado correctamente', 'success');
+                showNotification('✓ Archivos cargados correctamente', 'success');
             } else {
-                showNotification('❌ Formato no válido. Solo se permiten archivos .xlsx o .xls', 'error');
+                showNotification('❌ Formato no válido. Al menos un archivo no es .xlsx o .xls', 'error');
                 resetFileInput();
             }
         } else {
             resetFileInput();
         }
     });
+    // --- FIN DE MODIFICACIÓN ---
 
     function resetFileInput() {
-        fileInput.value = '';
-        fileName.textContent = 'Arrastra tu archivo Excel aquí';
+        fileInput.value = ''; // Esto limpia la selección de archivos
+        fileName.textContent = 'Arrastra tus archivos Excel aquí';
         document.querySelector('.file-subtext').textContent = 'o haz clic para seleccionar (.xlsx, .xls)';
         fileLabel.classList.remove('has-file');
         uploadBtn.disabled = true;
@@ -97,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         dragCounter++;
         fileLabel.classList.add('drag-over');
-        fileName.textContent = '🎯 Suelta el archivo aquí';
+        fileName.textContent = '🎯 Suelta los archivos aquí';
     });
 
     fileLabel.addEventListener('dragover', function(e) {
@@ -110,15 +129,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (dragCounter === 0) {
             fileLabel.classList.remove('drag-over');
             if (!fileLabel.classList.contains('has-file')) {
-                fileName.textContent = 'Arrastra tu archivo Excel aquí';
+                fileName.textContent = 'Arrastra tus archivos Excel aquí';
             }
         }
     });
 
     fileLabel.addEventListener('drop', function(e) {
         e.preventDefault();
-        fileLabel.style.backgroundColor = '#fafafa';
-        fileLabel.style.borderColor = '#ccc';
+        fileLabel.classList.remove('drag-over'); // Quitar clase al soltar
+        dragCounter = 0; // Resetear contador
         
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -132,9 +151,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Validación adicional en el envío del formulario
     document.querySelector('.upload-form').addEventListener('submit', function(e) {
-        if (!fileInput.files[0]) {
+        if (!fileInput.files || fileInput.files.length === 0) {
             e.preventDefault();
-            alert('Por favor selecciona un archivo antes de enviarlo.');
+            alert('Por favor selecciona al menos un archivo antes de enviarlo.');
             return false;
         }
         

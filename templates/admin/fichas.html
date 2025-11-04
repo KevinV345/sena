@@ -148,10 +148,11 @@
           {% endif %} {% endwith %} {% if fichas %}
           <div class="fichas-container">
             <div class="search-filter">
+              <!-- CORRECCIÓN: Comentario movido fuera de la etiqueta input -->
               <input
                 type="text"
                 id="search-fichas"
-                placeholder="Buscar ficha por número (ej: 3282695)..."
+                placeholder="Buscar por número o nombre de ficha..."
                 class="search-input"
               />
             </div>
@@ -159,9 +160,11 @@
             <div class="fichas-grid" id="fichas-grid">
               <!-- CORRECCIÓN: Se itera sobre 'fichas' como una lista -->
               {% for ficha in fichas %}
+              <!-- CORRECCIÓN: Comentario movido fuera de la etiqueta div -->
               <div
                 class="ficha-card {{ 'ficha-disabled' if not ficha.activo }}"
                 data-ficha-num="{{ ficha.id_ficha }}"
+                data-ficha-nombre="{{ ficha.nombre }}"
               >
                 <div class="ficha-header">
                   <!-- CORRECCIÓN: Se usa ficha.id_ficha -->
@@ -249,3 +252,4 @@
     <script src="{{ url_for('static', filename='js/admin/fichas.js') }}"></script>
   </body>
 </html>
+

@@ -46,8 +46,8 @@ def allowed_image_file(filename):
 
 # --- Configuración de Base de Datos ---
 DB_CONFIG = {
-    'user': 'flask',
-    'password': '1234',
+    'user': 'root',
+    'password': '',
     'host': 'localhost',
     'database': 'olimpiadas',
     'raise_on_warnings': True,
@@ -142,176 +142,220 @@ def admin_dashboard():
     nombre_completo = f"{session.get('user_name', '')} {session.get('user_apellido', '')}".strip()
     
     if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No se encontró el archivo', 'danger')
-            return redirect(request.url)
+        # --- INICIO DE MODIFICACIÓN: Procesar múltiples archivos ---
         
-        file = request.files['file']
-        if file.filename == '':
+        # 1. Obtener la lista de archivos
+        files = request.files.getlist('file')
+
+        if not files or all(f.filename == '' for f in files):
             flash('No se seleccionó ningún archivo', 'warning')
             return redirect(request.url)
         
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+        # 2. Preparar listas para acumular resultados
+        resultados_exitosos = []
+        resultados_fallidos = []
+
+        # 3. Iterar sobre cada archivo subido
+        for file in files:
             
-            try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                engine = 'openpyxl' if filepath.endswith('.xlsx') else 'xlrd'
-
-                # Leer número de ficha desde la fila 2, columna C (índice 2)
-                # La ficha está en celdas combinadas C2:E2
-                df_meta = pd.read_excel(filepath, nrows=1, skiprows=1, header=None, engine=engine)
-                ficha_raw = df_meta.iloc[0, 2]  # Columna C (índice 2)
-                # Extraer solo los números de la cadena
-                ficha_match = re.search(r'(\d+)', str(ficha_raw))
-                if not ficha_match:
-                    raise ValueError(f"No se pudo extraer el número de ficha de: {ficha_raw}")
-                numero_ficha = int(ficha_match.group(1))
-
-                # Leer datos de aprendices desde la fila 6 (skiprows=4, ya que hay encabezado en fila 5)
-                df = pd.read_excel(filepath, skiprows=4, engine=engine)
-
-                # Verificar si la columna 'estado' existe en matricula (sin transacción)
-                cursor.execute("""
-                    SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE TABLE_SCHEMA = 'olimpiadas' 
-                    AND TABLE_NAME = 'matricula' 
-                    AND COLUMN_NAME = 'estado'
-                """)
-                tiene_estado_matricula = cursor.fetchone()[0] > 0
+            # 4. Verificar si el archivo es válido y está permitido
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 
-                if not tiene_estado_matricula:
-                    cursor.execute("ALTER TABLE matricula ADD COLUMN estado VARCHAR(50) DEFAULT 'EN FORMACION'")
-                    conn.commit()
-                
-                # Insertar/actualizar ficha (sin transacción todavía)
-                cursor.execute("SELECT id_ficha FROM fichas WHERE id_ficha = %s", (numero_ficha,))
-                if not cursor.fetchone():
-                    cursor.execute("INSERT INTO fichas (id_ficha, nombre, activo) VALUES (%s, %s, %s)", 
-                                 (numero_ficha, f"Ficha {numero_ficha}", True))
-                    conn.commit()
-                
-                registros_procesados = 0
-                registros_actualizados = 0
-                registros_error = 0
-                for index, row in df.iterrows():
-                    # Saltar filas vacías
-                    if pd.isna(row.get('Numero de Documento')) and pd.isna(row.get('Número de Documento')):
-                        continue
+                # Definir conn y cursor aquí para el bloque finally
+                conn = None
+                cursor = None
+
+                # 5. Mover CADA procesamiento de archivo dentro de su propio try/except
+                try:
+                    file.save(filepath)
                     
-                    try:
-                        # Limpiar y convertir identificación (con o sin tilde)
-                        doc_value = row.get('Numero de Documento') if pd.notna(row.get('Numero de Documento')) else row.get('Número de Documento')
-                        identificacion = str(doc_value).strip()
-                        identificacion = ''.join(filter(str.isdigit, identificacion))
-                        if not identificacion:
+                    conn = get_db_connection()
+                    if not conn:
+                        raise Exception("No se pudo conectar a la base de datos.")
+                        
+                    cursor = conn.cursor()
+                    engine = 'openpyxl' if filepath.endswith('.xlsx') else 'xlrd'
+
+                    # Leer número y nombre de ficha
+                    df_meta = pd.read_excel(filepath, nrows=1, skiprows=1, header=None, engine=engine)
+                    ficha_raw = str(df_meta.iloc[0, 2])
+
+                    numero_ficha = None
+                    nombre_ficha = None
+
+                    if ' - ' in ficha_raw:
+                        parts = ficha_raw.split(' - ', 1)
+                        num_match = re.search(r'(\d+)', parts[0])
+                        if num_match:
+                            numero_ficha = int(num_match.group(1))
+                            nombre_ficha = parts[1].strip()
+                    
+                    if numero_ficha is None:
+                        ficha_match = re.search(r'(\d+)', ficha_raw)
+                        if not ficha_match:
+                            raise ValueError(f"No se pudo extraer el número de ficha de: {ficha_raw}")
+                        numero_ficha = int(ficha_match.group(1))
+                        nombre_ficha = f"Ficha {numero_ficha}"
+
+                    # Leer datos de aprendices
+                    df = pd.read_excel(filepath, skiprows=4, engine=engine)
+
+                    # Verificar columna 'estado' en matricula
+                    cursor.execute("""
+                        SELECT COUNT(*) 
+                        FROM INFORMATION_SCHEMA.COLUMNS 
+                        WHERE TABLE_SCHEMA = 'olimpiadas' 
+                        AND TABLE_NAME = 'matricula' 
+                        AND COLUMN_NAME = 'estado'
+                    """)
+                    if cursor.fetchone()[0] == 0:
+                        cursor.execute("ALTER TABLE matricula ADD COLUMN estado VARCHAR(50) DEFAULT 'EN FORMACION'")
+                        conn.commit()
+                    
+                    # Insertar/actualizar ficha
+                    cursor.execute("SELECT id_ficha FROM fichas WHERE id_ficha = %s", (numero_ficha,))
+                    if not cursor.fetchone():
+                        cursor.execute("INSERT INTO fichas (id_ficha, nombre, activo) VALUES (%s, %s, %s)", 
+                                     (numero_ficha, nombre_ficha, True))
+                    else:
+                        cursor.execute("UPDATE fichas SET nombre = %s WHERE id_ficha = %s", (nombre_ficha, numero_ficha))
+                    conn.commit()
+                    
+                    registros_procesados = 0
+                    registros_actualizados = 0
+                    registros_error = 0
+                    
+                    # Iterar sobre las filas del Excel
+                    for index, row in df.iterrows():
+                        if pd.isna(row.get('Numero de Documento')) and pd.isna(row.get('Número de Documento')):
                             continue
-                        identificacion = int(identificacion)
                         
-                        nombre = str(row['Nombre']).strip() if pd.notna(row.get('Nombre')) else ''
-                        apellido = str(row['Apellidos']).strip() if pd.notna(row.get('Apellidos')) else ''
-                        celular = str(row['Celular']).strip() if pd.notna(row.get('Celular')) else '0'
-                        
-                        # Correo con o sin tilde
-                        correo_col = row.get('Correo Electrónico') if pd.notna(row.get('Correo Electrónico')) else row.get('Correo Electronico')
-                        correo = str(correo_col).strip() if pd.notna(correo_col) else ''
-                        
-                        # Se lee el estado del aprendiz y se verifica que sea 'EN FORMACION'
-                        estado_matricula = str(row.get('Estado', '')).strip()
-                        if estado_matricula.upper() != 'EN FORMACION':
-                            continue # Si no es 'EN FORMACION', se salta al siguiente aprendiz
-                        
-                        if not nombre or not apellido:
-                            print(f"Fila {index + 6}: Saltada - nombre o apellido vacío")
-                            continue
-                        
-                        # Convertir celular a número
                         try:
-                            celular_num = int(''.join(filter(str.isdigit, celular))) if celular and celular != '0' else 0
-                        except:
-                            celular_num = 0
+                            doc_value = row.get('Numero de Documento') if pd.notna(row.get('Numero de Documento')) else row.get('Número de Documento')
+                            identificacion = str(doc_value).strip()
+                            identificacion = ''.join(filter(str.isdigit, identificacion))
+                            if not identificacion:
+                                continue
+                            identificacion = int(identificacion)
                             
-                    except (ValueError, KeyError) as e:
-                        print(f"Error en fila {index + 6}: {e}")
-                        registros_error += 1
-                        continue
+                            nombre = str(row['Nombre']).strip() if pd.notna(row.get('Nombre')) else ''
+                            apellido = str(row['Apellidos']).strip() if pd.notna(row.get('Apellidos')) else ''
+                            celular = str(row['Celular']).strip() if pd.notna(row.get('Celular')) else '0'
+                            
+                            correo_col = row.get('Correo Electrónico') if pd.notna(row.get('Correo Electrónico')) else row.get('Correo Electronico')
+                            correo = str(correo_col).strip() if pd.notna(correo_col) else ''
+                            
+                            estado_matricula = str(row.get('Estado', '')).strip()
+                            
+                            # --- INICIO DE CORRECCIÓN: Aceptar 'INDUCCIÓN' y 'EN FORMACION' ---
+                            estado_valido = estado_matricula.upper()
+                            if estado_valido not in ['EN FORMACION', 'INDUCCION']:
+                                continue
+                            # --- FIN DE CORRECCIÓN ---
+                            
+                            if not nombre or not apellido:
+                                continue
+                            
+                            try:
+                                celular_num = int(''.join(filter(str.isdigit, celular))) if celular and celular != '0' else 0
+                            except:
+                                celular_num = 0
+                                
+                        except (ValueError, KeyError) as e:
+                            print(f"Error en fila {index + 6} ({filename}): {e}")
+                            registros_error += 1
+                            continue
 
-                    try:
-                        # Insertar o actualizar persona usando INSERT ... ON DUPLICATE KEY UPDATE
-                        sql_persona = """
-                            INSERT INTO personas (identificacion, nombre, apellido, celular, correo, `contraseña`, rol, estado, activo)
-                            VALUES (%s, %s, %s, %s, %s, %s, 'aprendiz', 'activo', TRUE)
-                            ON DUPLICATE KEY UPDATE
-                                nombre = %s,
-                                apellido = %s,
-                                celular = %s,
-                                correo = %s,
-                                `contraseña` = %s
-                        """
-                        cursor.execute(sql_persona, (
-                            identificacion, nombre, apellido, celular_num, correo, str(numero_ficha),
-                            nombre, apellido, celular_num, correo, str(numero_ficha)
-                        ))
-                        
-                        if cursor.rowcount == 1:
-                            registros_procesados += 1
-                        else:
-                            registros_actualizados += 1
-
-                        # Insertar o actualizar matrícula
-                        # Primero intentar insertar
                         try:
-                            sql_insert_matricula = """
-                                INSERT INTO matricula (identificacion, id_ficha, fecha_matricula, estado)
-                                VALUES (%s, %s, %s, %s)
+                            # Insertar o actualizar persona
+                            sql_persona = """
+                                INSERT INTO personas (identificacion, nombre, apellido, celular, correo, `contraseña`, rol, estado, activo)
+                                VALUES (%s, %s, %s, %s, %s, %s, 'aprendiz', 'activo', TRUE)
+                                ON DUPLICATE KEY UPDATE
+                                    nombre = %s,
+                                    apellido = %s,
+                                    celular = %s,
+                                    correo = %s,
+                                    `contraseña` = %s
                             """
-                            cursor.execute(sql_insert_matricula, (identificacion, numero_ficha, date.today(), estado_matricula))
-                        except mysql.connector.IntegrityError:
-                            # Si ya existe, actualizar
-                            sql_update_matricula = """
-                                UPDATE matricula 
-                                SET estado = %s, fecha_matricula = %s
-                                WHERE identificacion = %s AND id_ficha = %s
-                            """
-                            cursor.execute(sql_update_matricula, (estado_matricula, date.today(), identificacion, numero_ficha))
+                            cursor.execute(sql_persona, (
+                                identificacion, nombre, apellido, celular_num, correo, str(numero_ficha),
+                                nombre, apellido, celular_num, correo, str(numero_ficha)
+                            ))
+                            
+                            if cursor.rowcount == 1:
+                                registros_procesados += 1
+                            else:
+                                registros_actualizados += 1
+
+                            # Insertar o actualizar matrícula
+                            try:
+                                sql_insert_matricula = """
+                                    INSERT INTO matricula (identificacion, id_ficha, fecha_matricula, estado)
+                                    VALUES (%s, %s, %s, %s)
+                                """
+                                # Usamos el estado original del Excel (Ej: 'Inducción')
+                                cursor.execute(sql_insert_matricula, (identificacion, numero_ficha, date.today(), estado_matricula))
+                            except mysql.connector.IntegrityError:
+                                sql_update_matricula = """
+                                    UPDATE matricula 
+                                    SET estado = %s, fecha_matricula = %s
+                                    WHERE identificacion = %s AND id_ficha = %s
+                                """
+                                cursor.execute(sql_update_matricula, (estado_matricula, date.today(), identificacion, numero_ficha))
+                            
+                            if (registros_procesados + registros_actualizados) % 10 == 0:
+                                conn.commit()
                         
-                        # Hacer commit cada 10 registros para evitar bloqueos largos
-                        if (registros_procesados + registros_actualizados) % 10 == 0:
-                            conn.commit()
+                        except mysql.connector.Error as db_err:
+                            print(f"Error BD en fila {index + 6} (ID: {identificacion}, Archivo: {filename}): {db_err}")
+                            registros_error += 1
+                            conn.rollback()
+                            continue
+
+                    # Commit final para este archivo
+                    conn.commit()
                     
-                    except mysql.connector.Error as db_err:
-                        print(f"Error BD en fila {index + 6} (ID: {identificacion}): {db_err}")
-                        registros_error += 1
+                    # 6. Guardar mensaje de éxito
+                    mensaje = f'Archivo "{filename}" (Ficha {numero_ficha} - {nombre_ficha}): '
+                    mensaje += f'Nuevos: {registros_procesados}, Actualizados: {registros_actualizados}'
+                    if registros_error > 0:
+                        mensaje += f', Errores: {registros_error}'
+                    resultados_exitosos.append(mensaje)
+
+                except Exception as e:
+                    # 7. Guardar mensaje de error
+                    if 'conn' in locals() and conn and conn.is_connected():
                         conn.rollback()
-                        continue
-
-                # Commit final
-                conn.commit()
+                    error_msg = str(e)
+                    print(f"Error detallado en {filename}: {error_msg}")
+                    resultados_fallidos.append(f'Error al procesar "{filename}": {error_msg}')
                 
-                mensaje = f'Archivo procesado exitosamente para la ficha {numero_ficha}. '
-                mensaje += f'Nuevos: {registros_procesados}, Actualizados: {registros_actualizados}'
-                if registros_error > 0:
-                    mensaje += f', Errores: {registros_error}'
-                flash(mensaje, 'success')
-
-            except Exception as e:
-                if 'conn' in locals() and conn.is_connected():
-                    conn.rollback()
-                error_msg = str(e)
-                print(f"Error detallado: {error_msg}")
-                flash(f'Ocurrió un error al procesar el archivo: {error_msg}', 'danger')
-            finally:
-                if 'conn' in locals() and conn.is_connected():
-                    cursor.close()
-                    conn.close()
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-            
-            return redirect(url_for('admin_fichas'))
+                finally:
+                    # 8. Cerrar conexión y borrar archivo
+                    if 'cursor' in locals() and cursor:
+                        cursor.close()
+                    if 'conn' in locals() and conn and conn.is_connected():
+                        conn.close()
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                
+            elif file:
+                # Archivo no permitido (ej. .txt)
+                resultados_fallidos.append(f'Archivo "{file.filename}" no permitido (solo .xlsx, .xls).')
+        
+        # 9. Después de procesar todos los archivos, mostrar los mensajes
+        for msg in resultados_exitosos:
+            flash(msg, 'success')
+        for msg in resultados_fallidos:
+            flash(msg, 'danger')
+        
+        # 10. Redirigir UNA SOLA VEZ al final
+        return redirect(url_for('admin_fichas'))
+    
+    # --- FIN DE MODIFICACIÓN ---
 
     return render_template('admin/upload.html', usuario={'nombre_completo': nombre_completo})
 
@@ -1499,6 +1543,36 @@ def ver_ranking(id_instrumento):
             flash('Examen no encontrado.', 'warning')
             return redirect(url_for('inicio_instructor'))
         
+        # --- INICIO DE CORRECCIÓN (Verificar si Fase 2 ya fue asignada) ---
+        fase2_asignada = False
+        if examen['fase'] == 1:
+            try:
+                # 1. Buscar el examen de Fase 2 correspondiente
+                cursor.execute("""
+                    SELECT id_instrumento 
+                    FROM instrumentos 
+                    WHERE tipo = %s AND YEAR(fecha_creacion) = %s AND `fase(1-2)` = 2
+                """, (examen['tipo'], examen['anio']))
+                examen_fase2 = cursor.fetchone()
+                
+                if examen_fase2:
+                    id_fase_2 = examen_fase2['id_instrumento']
+                    # 2. Contar si ese examen de Fase 2 ya tiene asignaciones
+                    cursor.execute("""
+                        SELECT COUNT(*) as total
+                        FROM asignaciones 
+                        WHERE id_instrumento = %s
+                    """, (id_fase_2,))
+                    conteo_asignaciones = cursor.fetchone()
+                    
+                    if conteo_asignaciones and conteo_asignaciones['total'] > 0:
+                        fase2_asignada = True # ¡Ya se asignaron cupos!
+
+            except mysql.connector.Error as err_fase2:
+                print(f"Error al verificar asignaciones de Fase 2: {err_fase2}")
+                # No bloquear la carga, solo asumir que no se ha asignado
+        # --- FIN DE CORRECCIÓN ---
+        
         # Obtener el ranking de aprendices
         # --- INICIO DE MODIFICACIÓN ---
         query_ranking = """
@@ -1530,7 +1604,10 @@ def ver_ranking(id_instrumento):
         cursor.close()
         conn.close()
 
-    return render_template('instructor/ranking.html', examen=examen, ranking=ranking)
+    return render_template('instructor/ranking.html', 
+                         examen=examen, 
+                         ranking=ranking,
+                         fase2_asignada=fase2_asignada) # <-- Pasamos la nueva variable
 
 @app.route('/ranking/asignar_fase2', methods=['POST'])
 def asignar_fase2():
@@ -1597,14 +1674,15 @@ def asignar_fase2():
             for id_mat in matriculas
         ]
         
+        # Corrección para error 1287: Usar alias en ON DUPLICATE KEY UPDATE
         query_insert = """
             INSERT INTO asignaciones (id_matricula, id_instrumento, fecha_inicio, fecha_fin, calificacion)
             VALUES (%s, %s, %s, %s, %s)
+            AS new
             ON DUPLICATE KEY UPDATE
-                fecha_inicio = VALUES(fecha_inicio),
-                fecha_fin = VALUES(fecha_fin)
+                fecha_inicio = new.fecha_inicio,
+                fecha_fin = new.fecha_fin
         """
-        # Se usa ON DUPLICATE KEY UPDATE para evitar errores si ya se había asignado.
         
         cursor.executemany(query_insert, asignaciones_a_insertar)
         conn.commit()

@@ -6,8 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     fichaCards.forEach(card => {
         // Efecto de click con animación
         card.addEventListener('click', function(e) {
-            // No navegar si se hizo click en el botón
-            if (e.target.classList.contains('btn-view') || e.target.tagName === 'A') {
+            // No navegar si se hizo click en un botón o enlace
+            if (e.target.classList.contains('btn-view') || e.target.classList.contains('btn-toggle') || e.target.tagName === 'A') {
                 return;
             }
             
@@ -19,9 +19,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Navegar después de la animación
             setTimeout(() => {
-                const fichaNum = card.getAttribute('data-ficha-num');
-                if (fichaNum) {
-                    window.location.href = `/ficha/${fichaNum}`;
+                // Solo navegar si la ficha está activa
+                if (!card.classList.contains('ficha-disabled')) {
+                    const fichaNum = card.getAttribute('data-ficha-num');
+                    if (fichaNum) {
+                        window.location.href = `/ficha/${fichaNum}`;
+                    }
+                } else {
+                     // Si está desactivada, revertir la animación sin navegar
+                     card.style.transform = 'translateY(-5px)';
                 }
             }, 150);
         });
@@ -62,9 +68,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Estadísticas en tiempo real
-    updateStats();
+    // updateStats(); // Comentado si no se usa o da error
     
-    // Funcionalidad de búsqueda por número de ficha
+    // Funcionalidad de búsqueda por número y nombre de ficha
     const searchInput = document.getElementById('search-fichas');
     if (searchInput) {
         searchInput.addEventListener('input', function() {
@@ -73,13 +79,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             fichaCards.forEach(card => {
                 const fichaNumber = card.getAttribute('data-ficha-num');
-                const fichaTitle = card.querySelector('h3').textContent;
+                const fichaNombre = card.getAttribute('data-ficha-nombre'); // MODIFICADO: Obtener el nombre
                 
                 // Buscar por número de ficha
                 const matchesNumber = fichaNumber && fichaNumber.includes(searchTerm);
-                const matchesTitle = fichaTitle && fichaTitle.toLowerCase().includes(searchTerm);
-                
-                if (searchTerm === '' || matchesNumber || matchesTitle) {
+                // Buscar por nombre de ficha
+                const matchesNombre = fichaNombre && fichaNombre.toLowerCase().includes(searchTerm); // MODIFICADO: Buscar por nombre
+
+                // MODIFICADO: Condición de búsqueda actualizada
+                if (searchTerm === '' || matchesNumber || matchesNombre) {
                     card.style.display = 'block';
                     card.style.opacity = '1';
                 } else {
@@ -89,19 +97,31 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             // Mostrar mensaje si no hay resultados
-            const visibleCards = document.querySelectorAll('.ficha-card[style*="display: block"], .ficha-card:not([style*="display: none"])');
+            // Corregido para contar correctamente las tarjetas visibles
+            let visibleCount = 0;
+            fichaCards.forEach(card => {
+                if (card.style.display !== 'none') {
+                    visibleCount++;
+                }
+            });
+
             const noResults = document.getElementById('no-results-fichas');
             
-            if (visibleCards.length === 0 && searchTerm !== '') {
+            if (visibleCount === 0 && searchTerm !== '') {
                 if (!noResults) {
                     const noResultsDiv = document.createElement('div');
                     noResultsDiv.id = 'no-results-fichas';
-                    noResultsDiv.className = 'no-data';
+                    noResultsDiv.className = 'no-data'; // Reutilizar estilo
+                    noResultsDiv.style.width = '100%'; // Asegurar que ocupe espacio
                     noResultsDiv.innerHTML = `
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;"><path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         <h3>No se encontraron fichas</h3>
                         <p>No hay fichas que coincidan con "${searchTerm}"</p>
                     `;
                     document.querySelector('.fichas-grid').appendChild(noResultsDiv);
+                } else {
+                    // Actualizar el texto si ya existe
+                    noResults.querySelector('p').textContent = `No hay fichas que coincidan con "${searchTerm}"`;
                 }
             } else if (noResults) {
                 noResults.remove();
@@ -110,9 +130,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// La función updateStats se mantiene, pero asegúrate de que la ruta '/api/stats' exista y funcione.
 function updateStats() {
     fetch('/api/stats')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             // Actualizar contadores si existen elementos para mostrarlos
             const totalFichas = document.querySelector('[data-stat="total-fichas"]');
@@ -124,7 +150,7 @@ function updateStats() {
             if (fichasActivas) fichasActivas.textContent = data.fichas_activas;
         })
         .catch(error => {
-            console.log('Error actualizando estadísticas:', error);
+            console.warn('Error actualizando estadísticas (esto es opcional):', error);
         });
 }
 
