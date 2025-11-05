@@ -885,12 +885,16 @@
                         </div>`;
           }
 
+          // --- INICIO DE MODIFICACIÓN: Mover H2 para orden en móvil ---
           questionAreaEl.innerHTML = `
-                    <h2 class="question-header">${question.pregunta} <span class="question-points">(${question.puntos} puntos)</span></h2>
                     <div class="pregunta-vista-wrapper">
                         ${infoColHtml}
-                        <div class="pregunta-contenido-col">${contentHtml}</div>
+                        <div class="pregunta-contenido-col">
+                            <h2 class="question-header">${question.pregunta} <span class="question-points">(${question.puntos} puntos)</span></h2>
+                            ${contentHtml}
+                        </div>
                     </div>`;
+          // --- FIN DE MODIFICACIÓN ---
 
           if (hasImage) {
             const imgElement = questionAreaEl.querySelector(".pregunta-imagen");
@@ -1269,4 +1273,3 @@
     <!-- FIN DEL SCRIPT ACTUALIZADO -->
   </body>
 </html>
-
