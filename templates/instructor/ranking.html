@@ -126,7 +126,7 @@
                     </thead>
                     <tbody id="ranking-body">
                         {% for aprendiz in ranking %}
-                        <tr id="aprendiz-{{ aprendiz.identificacion }}" class="{{ 'top-30' if loop.index <= 30 else '' }}">
+                        <tr id="aprendiz-{{ aprendiz.identificacion }}" class="{{ 'top-30' if loop.index <= 40 else '' }}">
                             <td class="position">{{ loop.index }}</td>
                             <td>{{ aprendiz.nombre }}</td>
                             <td>{{ aprendiz.apellido }}</td>
@@ -135,7 +135,7 @@
                             <td class="score">{{ aprendiz.calificacion }}</td>
                             <td style="text-align: center;">
                                 <!-- INICIO DE CORRECCIÓN: Deshabilitar checkbox si ya fue asignado -->
-                                <input type="checkbox" data-identificacion="{{ aprendiz.identificacion }}" {{ 'checked' if loop.index <= 30 }} {{ 'disabled' if fase2_asignada }}>
+                                <input type="checkbox" data-identificacion="{{ aprendiz.identificacion }}" {{ 'checked' if loop.index <= 40 }} {{ 'disabled' if fase2_asignada }}>
                                 <!-- FIN DE CORRECCIÓN -->
                             </td>
                         </tr>
@@ -196,7 +196,7 @@
 
             const tableBody = document.getElementById('ranking-body');
             const originalRows = Array.from(tableBody.querySelectorAll('tr'));
-            const rowsPerPage = 30;
+            const rowsPerPage = 40;
             const paginationContainer = document.getElementById('pagination-container');
             const totalPages = Math.ceil(originalRows.length / rowsPerPage);
             let currentPage = 1;

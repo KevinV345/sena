@@ -75,6 +75,37 @@
       .radio-chulito-label input:checked ~ .radio-chulito-span::after {
         display: block;
       }
+
+      /* INICIO: Estilos para los nuevos controles de asignación */
+      .asignar-controles-container {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+      .asignar-controles-container input[type="text"] {
+        flex: 1 1 200px;
+        min-width: 150px;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      .asignar-controles-container button {
+        flex: 1 1 auto;
+        padding: 8px 12px;
+        background-color: #6c757d; /* btn-secondary */
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.2s;
+      }
+      .asignar-controles-container button:hover {
+        background-color: #5a6268;
+      }
+      /* FIN: Estilos para los nuevos controles de asignación */
     </style>
     <!-- FIN DE CAMBIOS -->
   </head>
@@ -308,8 +339,7 @@
         </div>
         <div class="modal-body-asignar">
           <p>
-            Selecciona las fichas a las que deseas asignar este examen. Por
-            defecto, todas están seleccionadas.
+            Selecciona las fichas a las que deseas asignar este examen.
           </p>
           <div class="asignar-fechas-container">
             <div class="form-group">
@@ -333,6 +363,19 @@
               />
             </div>
           </div>
+
+          <!-- INICIO: Filtro y botones de selección -->
+          <div class="asignar-controles-container">
+            <input
+              type="text"
+              id="filtro-fichas"
+              placeholder="Buscar por nombre o número..."
+            />
+            <button id="btn-seleccionar-todas">Seleccionar Todas</button>
+            <button id="btn-deseleccionar-todas">Deseleccionar Todas</button>
+          </div>
+          <!-- FIN: Filtro y botones de selección -->
+
           <div id="lista-fichas-asignar" class="lista-fichas-container">
             <!-- Las fichas se cargarán aquí dinámicamente -->
             <div class="loader"></div>
@@ -390,6 +433,55 @@
                   reader.readAsDataURL(event.target.files[0]);
               }
           });
+
+          // --- INICIO: Lógica de Filtro y Selección de Fichas ---
+
+          // Filtro de búsqueda
+          document.getElementById('filtro-fichas').addEventListener('input', (e) => {
+              const filtro = e.target.value.toLowerCase().trim();
+              const fichas = document.querySelectorAll('#lista-fichas-asignar .ficha-card-asignar');
+
+              fichas.forEach(ficha => {
+                  const infoDiv = ficha.querySelector('.ficha-card-info');
+                  if (!infoDiv) return;
+
+                  // Extraer texto del nombre (es el nodo de texto después del <strong>)
+                  const nombreNode = infoDiv.querySelector('p strong');
+                  const nombre = nombreNode ? (nombreNode.nextSibling ? nombreNode.nextSibling.textContent.toLowerCase().trim() : '') : '';
+                  const numero = infoDiv.querySelector('h4').textContent.toLowerCase().replace('ficha', '').trim();
+
+                  const coincide = nombre.includes(filtro) || numero.includes(filtro);
+
+                  ficha.style.display = coincide ? 'flex' : 'none';
+              });
+          });
+
+          // Seleccionar todas (visibles)
+          document.getElementById('btn-seleccionar-todas').addEventListener('click', () => {
+              document.querySelectorAll('#lista-fichas-asignar .ficha-card-asignar').forEach(ficha => {
+                  // Solo selecciona las visibles y no deshabilitadas
+                  if (ficha.style.display !== 'none') {
+                      const checkbox = ficha.querySelector('input[type="checkbox"]:not(:disabled)');
+                      if (checkbox) {
+                          checkbox.checked = true;
+                      }
+                  }
+              });
+          });
+
+          // Deseleccionar todas (visibles)
+          document.getElementById('btn-deseleccionar-todas').addEventListener('click', () => {
+              document.querySelectorAll('#lista-fichas-asignar .ficha-card-asignar').forEach(ficha => {
+                  // Solo deselecciona las visibles y no deshabilitadas
+                  if (ficha.style.display !== 'none') {
+                      const checkbox = ficha.querySelector('input[type="checkbox"]:not(:disabled)');
+                      if (checkbox) {
+                          checkbox.checked = false;
+                      }
+                  }
+              });
+          });
+          // --- FIN: Lógica de Filtro y Selección de Fichas ---
       });
 
       document.getElementById('btn-nueva-pregunta').addEventListener('click', () => {
@@ -997,6 +1089,7 @@
       btnAbrirAsignar.addEventListener('click', async () => {
           const listaFichasDiv = document.getElementById('lista-fichas-asignar');
           listaFichasDiv.innerHTML = '<div class="loader"></div>';
+          document.getElementById('filtro-fichas').value = ''; // Limpiar filtro al abrir
           modalAsignar.style.display = 'block';
 
           // Configurar fechas predeterminadas
@@ -1068,7 +1161,8 @@
               fichas.forEach(ficha => {
                   const isDisabled = ficha.ya_asignado;
                   const cardClass = isDisabled ? 'ficha-card-asignar disabled' : 'ficha-card-asignar';
-                  const checkboxState = isDisabled ? 'disabled' : 'checked';
+                  // --- CAMBIO: Por defecto no seleccionada ---
+                  const checkboxState = isDisabled ? 'disabled' : ''; // <-- ANTES ERA 'checked'
                   const infoHtml = isDisabled
                     ? `<p class="asignado-info">Ya asignado a esta ficha</p>`
                     : `<p><strong>Aprendices Activos:</strong> ${ficha.aprendices_activos}</p>`;
@@ -1097,7 +1191,15 @@
           }
       });
 
-      const cerrarModalAsignar = () => modalAsignar.style.display = 'none';
+      // --- CAMBIO: Limpiar filtro al cerrar ---
+      const cerrarModalAsignar = () => {
+          modalAsignar.style.display = 'none';
+          document.getElementById('filtro-fichas').value = ''; // Limpiar filtro
+          // Asegurarse de que todas las fichas se muestren la próxima vez
+          document.querySelectorAll('#lista-fichas-asignar .ficha-card-asignar').forEach(ficha => {
+              ficha.style.display = 'flex';
+          });
+      };
       btnCerrarAsignar.addEventListener('click', cerrarModalAsignar);
       btnCancelarAsignar.addEventListener('click', cerrarModalAsignar);
 
