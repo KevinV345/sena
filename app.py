@@ -1679,11 +1679,11 @@ def asignar_fase2():
         query_insert = """
             INSERT INTO asignaciones (id_matricula, id_instrumento, fecha_inicio, fecha_fin, calificacion)
             VALUES (%s, %s, %s, %s, %s)
-            AS new
             ON DUPLICATE KEY UPDATE
-                fecha_inicio = new.fecha_inicio,
-                fecha_fin = new.fecha_fin
+                fecha_inicio = VALUES(fecha_inicio),
+                fecha_fin = VALUES(fecha_fin)
         """
+
         
         cursor.executemany(query_insert, asignaciones_a_insertar)
         conn.commit()
